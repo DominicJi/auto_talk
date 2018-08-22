@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+</head>
+<body>
+<audio src="" id="player" autoplay="autoplay" controls></audio>
+
+<button onclick="start_rec()">开启录音</button>
+<button onclick="stop_rec()">结束录音</button>
+</body>
+<script type="application/javascript" src="Recorder.js"></script>
+<script type="application/javascript">
+    //创建websocket连接对象
+    var ws = new WebSocket('ws://127.0.0.1:8000/toy');
+    //先声明一个空记录对象
+    var rec = null;
+    //创建音频对象
+    var audio_context = new AudioContext();
+
+    //兼容浏览器配置
+    navigator.getUserMedia = (
+        navigator.getUserMedia ||
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia ||
+        navigator.msGetUserMedia
+    );
+    navigator.getUserMedia({audio: true}, create_stream, function (err) {
+        console.log(err)
+    });
+
+    //创建录音数据流
+    function create_stream(stream) {
+        var stream_input = audio_context.createMediaStreamSource(stream);
+        //创建记录录音对象
+        rec = new Recorder(stream_input);
+    }
+
+    //开始录音
+    function start_rec() {
+        rec.record();
+    }
+
+    //结束录音
+    function stop_rec() {
+        rec.stop();
+        get_audio();
+        rec.clear();
+    }
+
+    //发送录音二进制流数据
+    function get_audio() {
+        rec.exportWAV(function (wav_file) {
+            ws.send(wav_file);
+        })
+    }
+
+    //获取服务端处理好的语音数据
+    ws.onmessage = function (msg) {
+        //放入音频播放标签内
+        var player = document.getElementById('player');
+        player.src = msg.data
+    }
+
+
+</script>
+</html>
